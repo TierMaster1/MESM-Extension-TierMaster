@@ -152,11 +152,6 @@ namespace MonstrumExtendedSettingsMod
                     */
                 }
 
-                if (ModSettings.useMonsterUpdateGroups)
-                {
-                    DeclareMonsterGroups();
-                }
-
                 if (ModSettings.monsterSpawnSpeedrunSpawnTime != 0)
                 {
                     TimeScaleManager.Instance.StartCoroutine(MonsterSpawnSpeedrunMonsterSpawner());
@@ -6145,12 +6140,6 @@ namespace MonstrumExtendedSettingsMod
                     Debug.Log("Failed monster specific list adjustment operations in create new monster.");
                 }
 
-                // Redeclare monster update groups if these are being used.
-                if (ModSettings.useMonsterUpdateGroups)
-                {
-                    DeclareMonsterGroups();
-                }
-
                 try
                 {
                     if (monsterListMonsterComponents[0].Starter != null)
@@ -7495,52 +7484,10 @@ namespace MonstrumExtendedSettingsMod
                 }
             }
 
-            private static List<int> monsterGroups;
-            private static int numberOfMonstersPerGroup;
-            public static int groupCounter = 1;
-
-            private static void DeclareMonsterGroups()
-            {
-                numberOfMonstersPerGroup = (int)Math.Round((float)ModSettings.numberOfMonsters / ModSettings.NumberOfMonsterUpdateGroups, 0);
-                Debug.Log("Number of monsters per group is " + numberOfMonstersPerGroup);
-
-                monsterGroups = new List<int>(new int[ModSettings.numberOfMonsters]);
-                for (int i = 0; i < monsterGroups.Count; i++)
-                {
-                    monsterGroups[i] = FindMonsterGroup(i);
-                }
-            }
-
+            public static int groupCounter;
             private static bool IsMonsterInActiveGroup(Monster monster)
             {
-                if (monsterGroups != null)
-                {
-                    Debug.Log("Monster group is " + monsterGroups[MonsterNumber(monster.GetInstanceID())] + " and active group is " + groupCounter + " and group counter plus one is " + groupCounter + 1);
-                }
-                if (monsterGroups != null && monsterGroups[MonsterNumber(monster.GetInstanceID())] == groupCounter + 1)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-
-            private static int FindMonsterGroup(int monsterNumber)
-            {
-                int monsterGroup = 1;
-                for (int i = 2; i <= ModSettings.NumberOfMonsterUpdateGroups; i++)
-                {
-                    int maximumMonsterNumberInGroup = numberOfMonstersPerGroup * i;
-                    int minimumMonsterNumberInGroup = maximumMonsterNumberInGroup - numberOfMonstersPerGroup;
-
-                    if (monsterNumber >= minimumMonsterNumberInGroup && monsterNumber < maximumMonsterNumberInGroup)
-                    {
-                        monsterGroup = i;
-                    }
-                }
-                return monsterGroup;
+                return MonsterNumber(monster.GetInstanceID()) % ModSettings.NumberOfMonsterUpdateGroups == groupCounter;
             }
 
             /*----------------------------------------------------------------------------------------------------*/

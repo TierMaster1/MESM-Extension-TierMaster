@@ -324,9 +324,13 @@ namespace MonstrumExtendedSettingsMod
             /*----------------------------------------------------------------------------------------------------*/
             // @Achievements
 
+            /// <summary>
+            /// Prevents achievements from being completed multiple times.
+            /// This prevents lag in situations like spraying the Monster.
+            /// </summary>
             private static void HookAchievements(On.Achievements.orig_CompleteAchievement orig, Achievements achievements, string _identifier)
             {
-                if (achievements.achievements[_identifier].completed == false)
+                if (!achievements.achievements[_identifier].completed)
                 {
                     orig.Invoke(achievements, _identifier);
                 }
@@ -335,18 +339,21 @@ namespace MonstrumExtendedSettingsMod
             /*----------------------------------------------------------------------------------------------------*/
             // @Active Features
 
+            /// <summary>
+            /// Holds custom code for any features that may be updated each frame.
+            /// </summary>
             private static void ActiveFeatures()
             {
-                if (LevelGeneration.Instance.finishedGenerating)
+                if (LevelGeneration.Instance.finishedGenerating) // Run features once the level has finished loading.
                 {
                     // Debug & 0 Monsters Mode Monster Disabler
                     if ((ModSettings.debugMode && Input.GetKeyDown(KeyCode.Period)) || (ModSettings.numberOfMonsters == 0 && References.Monster.activeInHierarchy))
                     {
                         if (ModSettings.numberOfMonsters > 1 && ManyMonstersMode.monsterList != null)
                         {
-                            for (int i = 0; i < ManyMonstersMode.monsterList.Count; i++)
+                            foreach (GameObject monster in ManyMonstersMode.monsterList)
                             {
-                                ManyMonstersMode.monsterList[i].SetActive(false);
+                                monster.SetActive(false);
                             }
                         }
                         else
@@ -354,25 +361,19 @@ namespace MonstrumExtendedSettingsMod
                             References.Monster.SetActive(false);
                         }
 
-                        if ((ModSettings.debugMode && Input.GetKeyDown(KeyCode.Period)))
+                        if (ModSettings.debugMode && Input.GetKeyDown(KeyCode.Period))
                         {
                             ModSettings.ShowTextOnScreen("Disabled Monster(s)");
                         }
                     }
 
-                    // Grouping Feature Frame Update
+                    // Grouping Feature Frame Update. Update the group counter to let the next group of monsters update.
                     if (ModSettings.useMonsterUpdateGroups && ModSettings.numberOfMonsters > 1)
                     {
-                        if (ManyMonstersMode.groupCounter < ModSettings.NumberOfMonsterUpdateGroups)
-                        {
-                            ManyMonstersMode.groupCounter++;
-                        }
-                        else
-                        {
-                            ManyMonstersMode.groupCounter = 1;
-                        }
+                        ManyMonstersMode.groupCounter = (ManyMonstersMode.groupCounter + 1) % ModSettings.NumberOfMonsterUpdateGroups;
                     }
 
+                    // Show the speedrun timer. Show the current time if the player has not escaped. Else, show the final time.
                     if (ModSettings.showSpeedrunTimerOnScreen)
                     {
                         if (ModSettings.finalTime.Equals(string.Empty))
@@ -386,11 +387,12 @@ namespace MonstrumExtendedSettingsMod
                     }
                     else if (ModSettings.scavengerMode)
                     {
+                        // Try to find an item to show on the radar.
                         if (nearbyInventoryItem == null || nearbyInventoryItem.inInventory)
                         {
                             bool validItem = false;
                             InventoryItem[] inventoryItems = FindObjectsOfType<InventoryItem>();
-                            while (!validItem)
+                            for (int i = 0; i < inventoryItems.Length && !validItem; i++) // Better than a while loop, but still not ideal.
                             {
                                 int randomIndex = UnityEngine.Random.Range(0, inventoryItems.Length);
                                 nearbyInventoryItem = inventoryItems[randomIndex];
@@ -403,12 +405,16 @@ namespace MonstrumExtendedSettingsMod
                             float itemHeight = RegionManager.Instance.ConvertPointToRegionNode(nearbyInventoryItem.transform.position).y; //nearbyInventoryItem.transform.position.y;
                             nearbyInventoryItemDeck = (int)itemHeight;
                         }
-                        int distanceToItem = Mathf.RoundToInt(Vector3.Distance(nearbyInventoryItem.transform.position, References.player.transform.position)); // (int)Math.Round((nearbyInventoryItem.transform.position - References.player.transform.position).magnitude); // Can use Vector3.Distance instead.
+                        else // Show the item.
+                        {
+                            int distanceToItem = Mathf.RoundToInt(Vector3.Distance(nearbyInventoryItem.transform.position, References.player.transform.position)); // (int)Math.Round((nearbyInventoryItem.transform.position - References.player.transform.position).magnitude); // Can use Vector3.Distance instead.
 
-                        ModSettings.ShowTextOnScreen("You are " + distanceToItem + "m away from the item " + nearbyInventoryItem.itemName + ", which is on deck " + nearbyInventoryItemDeck + ".");
+                            ModSettings.ShowTextOnScreen("You are " + distanceToItem + "m away from the item " + nearbyInventoryItem.itemName + ", which is on deck " + nearbyInventoryItemDeck + ".");
+                        }
                     }
                     else if (ModSettings.monsterRadar && ModSettings.numberOfMonsters > 0)
                     {
+                        // Find the closest monster to the player and calculate the distance to it.
                         Monster closestMonster;
                         if (ModSettings.numberOfMonsters == 1)
                         {
@@ -418,8 +424,8 @@ namespace MonstrumExtendedSettingsMod
                         {
                             closestMonster = ManyMonstersMode.monsterListMonsterComponents[ManyMonstersMode.ClosestMonsterToPlayer()];
                         }
-                        int distanceToMonster = Mathf.RoundToInt(Vector3.Distance(closestMonster.transform.position, References.player.transform.position)); // (int)Math.Round((closestMonster.transform.position - References.player.transform.position).magnitude); // Can use Vector3.Distance instead.
-                        int distanceToRoot = Mathf.RoundToInt(Vector3.Distance(closestMonster.monsterMesh[0].rootBone.transform.position, References.player.transform.position)); // (int)Math.Round((closestMonster.monsterMesh[0].rootBone.transform.position - References.player.transform.position).magnitude); // Can use Vector3.Distance instead.
+                        int distanceToMonster = Mathf.RoundToInt(Vector3.Distance(closestMonster.transform.position, References.player.transform.position));
+                        int distanceToRoot = Mathf.RoundToInt(Vector3.Distance(closestMonster.monsterMesh[0].rootBone.transform.position, References.player.transform.position));
 
                         // If the monster is out of ship bounds, use its height instead.
                         float closestMonsterDeck;
@@ -433,53 +439,53 @@ namespace MonstrumExtendedSettingsMod
                             Debug.Log("Closest monster to player, " + closestMonster.monsterType + ", does not seem to be in bounds.");
                         }
 
+                        // Show information on the monster on-screen.
                         ModSettings.ShowTextOnScreen("You are " + distanceToMonster + "m away from the monster " + closestMonster.monsterType + ", which is on deck " + closestMonsterDeck + ". Is the monster visible? " + closestMonster.monsterMesh[0].isVisible + ". Root is " + distanceToRoot + "m away.");
                     }
                     else if (ModSettings.glowstickRadar)
                     {
-                        // # Optimise this using a pre-declared list that is checked where glowsticks are removed when they are used. Could also let the user press a key to update the item. Might also be good for scavenger mode.
-                        GlowStick[] allGlowsticks = FindObjectsOfType<GlowStick>();
-                        List<GlowStick> unusedGlowsticks = new List<GlowStick>();
+                        // # Could optimise this using a pre-declared list that is checked where glowsticks are removed when they are used. Could also let the user press a key to update the item. Might also be good for scavenger mode.
+                        // Find all unused glowsticks.
+                        List<GlowStick> unusedGlowsticks = FindObjectsOfType<GlowStick>().Where(glowStick => !glowStick.used).ToList();
 
-                        foreach (GlowStick glowStick in allGlowsticks)
+                        if (unusedGlowsticks.Count > 0)
                         {
-                            if (!glowStick.used)
+                            // Find the closest unused glowstick and calculate its distance to the player.
+                            GlowStick closestUnusedGlowstick = unusedGlowsticks[0];
+                            for (int glowstickNumber = 0; glowstickNumber < unusedGlowsticks.Count; glowstickNumber++)
                             {
-                                unusedGlowsticks.Add(glowStick);
+                                if (Vector3.Distance(unusedGlowsticks[glowstickNumber].transform.position, References.Player.transform.position) < Vector3.Distance(closestUnusedGlowstick.transform.position, References.Player.transform.position))
+                                {
+                                    closestUnusedGlowstick = unusedGlowsticks[glowstickNumber];
+                                }
                             }
-                        }
+                            int distanceToClosestUnusedGlowstick = Mathf.RoundToInt(Vector3.Distance(closestUnusedGlowstick.transform.position, References.Player.transform.position));
 
-                        GlowStick closestUnusedGlowstick = unusedGlowsticks[0];
-
-                        for (int glowstickNumber = 0; glowstickNumber < unusedGlowsticks.Count; glowstickNumber++)
-                        {
-                            if (Vector3.Distance(unusedGlowsticks[glowstickNumber].transform.position, References.Player.transform.position) < Vector3.Distance(closestUnusedGlowstick.transform.position, References.Player.transform.position))
+                            // If the closest unused glowstick is out of ship bounds, use its height instead.
+                            float closestUnusedGlowstickDeck;
+                            try
                             {
-                                closestUnusedGlowstick = unusedGlowsticks[glowstickNumber];
+                                closestUnusedGlowstickDeck = (int)RegionManager.Instance.ConvertPointToRegionNode(closestUnusedGlowstick.transform.position).y;
                             }
-                        }
+                            catch
+                            {
+                                closestUnusedGlowstickDeck = (int)closestUnusedGlowstick.transform.position.y;
+                                Debug.Log("Closest glowstick to player does not seem to be in bounds.");
+                            }
 
-                        int distanceToClosestUnusedGlowstick = Mathf.RoundToInt(Vector3.Distance(closestUnusedGlowstick.transform.position, References.Player.transform.position));
-
-                        // If the closest unused glowstick is out of ship bounds, use its height instead.
-                        float closestUnusedGlowstickDeck;
-                        try
-                        {
-                            closestUnusedGlowstickDeck = (int)RegionManager.Instance.ConvertPointToRegionNode(closestUnusedGlowstick.transform.position).y;
+                            // Show info on the glowstick.
+                            ModSettings.ShowTextOnScreen("You are " + distanceToClosestUnusedGlowstick + "m away from a glowstick on deck " + closestUnusedGlowstickDeck + ".");
                         }
-                        catch
-                        {
-                            closestUnusedGlowstickDeck = (int)closestUnusedGlowstick.transform.position.y;
-                            Debug.Log("Closest glowstick to player does not seem to be in bounds.");
-                        }
-
-                        ModSettings.ShowTextOnScreen("You are " + distanceToClosestUnusedGlowstick + "m away from a glowstick on deck " + closestUnusedGlowstickDeck + ".");
                     }
                     else if (ModSettings.playerRegionNodeText)
                     {
+                        // Try to get the player's current region node.
                         Vector3 playerRegionNode = RegionManager.Instance.ConvertPointToRegionNode(References.Player.transform.position);
+
+                        // Check whether the player's node is within bounds.
                         if (CheckBoundariesLG.NodeWithinShipBounds(playerRegionNode))
                         {
+                            // Record information on the player's region.
                             StringBuilder stringBuilder = new StringBuilder();
                             NodeData playerRegionNodeData = LevelGeneration.GetNodeDataAtPosition(References.Player.transform.position);
                             if (playerRegionNodeData != null && playerRegionNodeData.nodeRoom != null)
@@ -487,6 +493,7 @@ namespace MonstrumExtendedSettingsMod
                                 stringBuilder.Append(playerRegionNodeData.nodeRoom.PrimaryRegion.ToString());
                             }
 
+                            // Append additional information on the player's region.
                             for (int i = 0; i < RegionManager.Instance.regionData[(int)playerRegionNode.x].regionDataY[(int)playerRegionNode.y].regionDataZ[(int)playerRegionNode.z].regionID.Count; i++)
                             {
                                 string regionString = RegionManager.Instance.IDToName(RegionManager.Instance.regionData[(int)playerRegionNode.x].regionDataY[(int)playerRegionNode.y].regionDataZ[(int)playerRegionNode.z].regionID[i]);
@@ -508,20 +515,11 @@ namespace MonstrumExtendedSettingsMod
                     // Debug Features
                     if (ModSettings.debugMode)
                     {
-                        if (ModSettings.BreakTheGameLight)
-                        {
-                            if (LevelGeneration.Instance.finishedGenerating || ModSettings.BreakTheGameHeavy)
-                            {
-                                LevelGeneration.Instance.selectedMonster = null;
-                                References.monster = null;
-                            }
-                        }
-
+                        // Noclip mode switch.
                         if (Input.GetKeyDown(KeyCode.V))
                         {
                             ModSettings.noclip = !ModSettings.noclip;
                             NewPlayerClass.Instance.playerMotor.allowFallDamage = !NewPlayerClass.Instance.playerMotor.allowFallDamage;
-
 
                             if (ModSettings.noclip)
                             {
@@ -531,43 +529,12 @@ namespace MonstrumExtendedSettingsMod
                             {
                                 ModSettings.ShowTextOnScreen("Turned Off Noclip");
                             }
-                            /*
-                            if (!ModSettings.noclip)
-                            {
-                                // Set default keys.
-                                KeyCode forwardKey = KeyCode.W;
-                                KeyCode backKey = KeyCode.S;
-                                KeyCode leftKey = KeyCode.A;
-                                KeyCode rightKey = KeyCode.D;
-
-                                // Get player preference keys if available.
-                                if (PlayerPrefs.HasKey("SavedForwardKey"))
-                                {
-                                   forwardKey = GetKeyPrefCopy("SavedForwardKey", forwardKey);
-                                }
-                                if (PlayerPrefs.HasKey("SavedBackKey"))
-                                {
-                                    backKey = GetKeyPrefCopy("SavedBackKey", backKey);
-                                }
-                                if (PlayerPrefs.HasKey("SavedLeftKey"))
-                                {
-                                    leftKey = GetKeyPrefCopy("SavedLeftKey", leftKey);
-                                }
-                                if (PlayerPrefs.HasKey("SavedRightKey"))
-                                {
-                                    rightKey = GetKeyPrefCopy("SavedRightKey", rightKey);
-                                }
-
-                                // Set keys.
-                                PlayerPrefs.SetInt("SavedForwardKey", (int)forwardKey);
-                                PlayerPrefs.SetInt("SavedBackKey", (int)backKey);
-                                PlayerPrefs.SetInt("SavedLeftKey", (int)leftKey);
-                                PlayerPrefs.SetInt("SavedRightKey", (int)rightKey);
-                            }*/
                         }
 
+                        // Let the player noclip by checking the UHJK keys.
                         if (ModSettings.noclip)
                         {
+                            // Check whether to noclip the monster or the player.
                             if (ModSettings.enableCrewVSMonsterMode && ModSettings.numbersOfMonsterPlayers.Contains(0) && MonsterStarter.spawned)
                             {
                                 if (Input.GetKey(KeyCode.U))
@@ -608,15 +575,15 @@ namespace MonstrumExtendedSettingsMod
                             }
                         }
 
+                        // Set monsters to active.
                         if (Input.GetKeyDown(KeyCode.Comma))
                         {
                             if (ModSettings.numberOfMonsters > 1 && ManyMonstersMode.monsterList != null)
                             {
-                                for (int i = 0; i < ManyMonstersMode.monsterList.Count; i++)
+                                foreach (GameObject monster in ManyMonstersMode.monsterList)
                                 {
-                                    ManyMonstersMode.monsterList[i].SetActive(true);
+                                    monster.SetActive(true);
                                 }
-
                             }
                             else
                             {
@@ -626,88 +593,64 @@ namespace MonstrumExtendedSettingsMod
                             ModSettings.ShowTextOnScreen("Enabled Monster(s)");
                         }
 
+                        // Ready the helicopter.
                         if (Input.GetKeyDown(KeyCode.O))
                         {
                             ModSettings.ShowTextOnScreen("Started Helicopter Escape Sequence");
 
-                            HelicopterEscape helicopterEscape = (UnityEngine.Object.FindObjectOfType(typeof(HelicopterEscape)) as HelicopterEscape);
-                            foreach (HelicopterChain chain in helicopterEscape.chains)
-                            {
-                                chain.Break();
-                            }
+                            foreach (HelicopterChain chain in (FindObjectOfType(typeof(HelicopterEscape)) as HelicopterEscape).chains) { chain.Break(); }
+                            (FindObjectOfType(typeof(HeliLock)) as HeliLock).OnFinishFixedAnimation();
+                            (FindObjectOfType(typeof(HeliLockStatus)) as HeliLockStatus).OnStartFixedAnimation();
+                            (FindObjectOfType(typeof(HeliDoor)) as HeliDoor).OnHandGrab();
+                            (FindObjectOfType(typeof(SlerpFuelTrolley)) as SlerpFuelTrolley).StartTrolleySlerp();
 
-                            HeliLock heliLock = (UnityEngine.Object.FindObjectOfType(typeof(HeliLock)) as HeliLock);
-                            heliLock.OnFinishFixedAnimation();
-
-                            HeliLockStatus heliLockStatus = (UnityEngine.Object.FindObjectOfType(typeof(HeliLockStatus)) as HeliLockStatus);
-                            heliLockStatus.OnStartFixedAnimation();
-
-                            HeliDoor heliDoor = (UnityEngine.Object.FindObjectOfType(typeof(HeliDoor)) as HeliDoor);
-                            heliDoor.OnHandGrab();
-
-                            SlerpFuelTrolley slerpFuelTrolley = (UnityEngine.Object.FindObjectOfType(typeof(SlerpFuelTrolley)) as SlerpFuelTrolley);
-                            slerpFuelTrolley.StartTrolleySlerp();
-
-                            FuelPump fuelPump = (UnityEngine.Object.FindObjectOfType(typeof(FuelPump)) as FuelPump);
+                            FuelPump fuelPump = FindObjectOfType(typeof(FuelPump)) as FuelPump;
                             fuelPump.AddFuel(fuelPump.maxFuel);
 
-                            FuelConnection fuelConnection = (UnityEngine.Object.FindObjectOfType(typeof(FuelConnection)) as FuelConnection);
-                            FuelPipeEnd fuelPipeEnd = (UnityEngine.Object.FindObjectOfType(typeof(FuelPipeEnd)) as FuelPipeEnd);
-                            FuelPumpLever fuelPumpLever = (UnityEngine.Object.FindObjectOfType(typeof(FuelPumpLever)) as FuelPumpLever);
+                            FuelConnection fuelConnection = FindObjectOfType(typeof(FuelConnection)) as FuelConnection;
+                            FuelPipeEnd fuelPipeEnd = FindObjectOfType(typeof(FuelPipeEnd)) as FuelPipeEnd;
+                            FuelPumpLever fuelPumpLever = FindObjectOfType(typeof(FuelPumpLever)) as FuelPumpLever;
                             fuelConnection.StartCoroutine(ConnectHelicopterHoseWhenReady(fuelConnection, fuelPipeEnd, fuelPumpLever));
                         }
 
+                        // Ready the sub.
                         if (Input.GetKeyDown(KeyCode.P))
                         {
                             ModSettings.ShowTextOnScreen("Started Submersible Escape Sequence");
 
-                            SubAlarm subAlarm = (UnityEngine.Object.FindObjectOfType(typeof(SubAlarm)) as SubAlarm);
+                            SubAlarm subAlarm = FindObjectOfType(typeof(SubAlarm)) as SubAlarm;
                             subAlarm.forGary = true;
                             subAlarm.StartTheEvent();
                         }
 
+                        // Ready the liferaft.
                         if (Input.GetKeyDown(KeyCode.I))
                         {
                             TimeScaleManager.Instance.StartCoroutine(ReadyLiferaft(true));
                         }
 
+                        // Spawn useful items.
                         if (Input.GetKeyDown(KeyCode.L))
                         {
-                            UnityEngine.Object.Instantiate<GameObject>(UnityEngine.Object.FindObjectOfType<Radio>().gameObject, References.Player.transform.position + References.Player.transform.up + References.Player.transform.forward, References.Player.transform.rotation);
+                            Instantiate(FindObjectOfType<Radio>().gameObject, References.Player.transform.position + References.Player.transform.up + References.Player.transform.forward, References.Player.transform.rotation);
                             if (ModSettings.spawnDeactivatedItems)
                             {
-                                UnityEngine.Object.Instantiate<GameObject>(UnityEngine.Object.FindObjectOfType<WalkieTalkie>().gameObject, References.Player.transform.position + References.Player.transform.up + References.Player.transform.forward, References.Player.transform.rotation);
-                                UnityEngine.Object.Instantiate<GameObject>(UnityEngine.Object.FindObjectOfType<WalkieTalkie>().gameObject, References.Player.transform.position + References.Player.transform.up + References.Player.transform.forward, References.Player.transform.rotation);
-                                UnityEngine.Object.Instantiate<GameObject>(UnityEngine.Object.FindObjectOfType<CompassScript>().gameObject, References.Player.transform.position + References.Player.transform.up + References.Player.transform.forward, References.Player.transform.rotation);
+                                Instantiate(FindObjectOfType<WalkieTalkie>().gameObject, References.Player.transform.position + References.Player.transform.up + References.Player.transform.forward, References.Player.transform.rotation);
+                                Instantiate(FindObjectOfType<WalkieTalkie>().gameObject, References.Player.transform.position + References.Player.transform.up + References.Player.transform.forward, References.Player.transform.rotation);
+                                Instantiate(FindObjectOfType<CompassScript>().gameObject, References.Player.transform.position + References.Player.transform.up + References.Player.transform.forward, References.Player.transform.rotation);
                             }
-                            /*
-                            foreach (InventorySlot inventorySlot in References.Inventory.inventorySlots)
-                            {
-                                if (inventorySlot == null)
-                                {
-                                    WalkieTalkie walkieTalkie = References.PlayerClass.gameObject.AddComponent<WalkieTalkie>();
-                                    if (walkieTalkie != null)
-                                    {
-                                        inventorySlot.AddItem(walkieTalkie.item);
-                                    }
-                                    else
-                                    {
-                                        Debug.Log("Walkie Talkie is null");
-                                    }
-                                    break;
-                                }
-                            }
-                            */
                         }
 
+                        // Spawn fuses.
                         if (Input.GetKeyDown(KeyCode.Semicolon))
                         {
                             for (int i = 0; i < 10; i++)
                             {
-                                UnityEngine.Object.Instantiate<GameObject>(UnityEngine.Object.FindObjectOfType<Fuse>().gameObject, References.Player.transform.position + References.Player.transform.up + References.Player.transform.forward, References.Player.transform.rotation);
+                                Instantiate(FindObjectOfType<Fuse>().gameObject, References.Player.transform.position + References.Player.transform.up + References.Player.transform.forward, References.Player.transform.rotation);
                             }
                         }
 
+                        // Spawn a Brute.
                         if (Input.GetKeyDown(KeyCode.R) && ModSettings.startedWithMMM)
                         {
                             if (ModSettings.numberOfBrutes > 0)
@@ -721,6 +664,7 @@ namespace MonstrumExtendedSettingsMod
                             }
                         }
 
+                        // Spawn a Hunter.
                         if (Input.GetKeyDown(KeyCode.T) && ModSettings.startedWithMMM)
                         {
                             if (ModSettings.numberOfHunters > 0)
@@ -734,6 +678,7 @@ namespace MonstrumExtendedSettingsMod
                             }
                         }
 
+                        // Spawn a Fiend.
                         if ((Input.GetKeyDown(KeyCode.Y) || Input.GetKeyDown(KeyCode.Z)) && ModSettings.startedWithMMM)
                         {
                             if (ModSettings.numberOfFiends > 0)
@@ -747,18 +692,7 @@ namespace MonstrumExtendedSettingsMod
                             }
                         }
 
-                        /* Attempt at letting the user reverse the effects of debug mode on the walls. This seems to be more complicated than at first glance. The "wallhacks" seem to occur due to a lack of room collision of some kind.
-                        if (Input.GetKeyDown(KeyCode.L))
-                        {
-                            Room[] rooms = Resources.FindObjectsOfTypeAll(typeof(Room)) as Room[];
-
-                            foreach(Room room in rooms)
-                            {
-
-                            }
-                        }
-                        */
-
+                        // Teleport all items to the player.
                         if (Input.GetKeyDown(KeyCode.Quote))
                         {
                             InventoryItem[] inventoryItems = FindObjectsOfType<InventoryItem>();
@@ -769,15 +703,9 @@ namespace MonstrumExtendedSettingsMod
                                     inventoryItem.gameObject.transform.position = References.Player.transform.position + new Vector3(UnityEngine.Random.Range(-1f, 1f), UnityEngine.Random.Range(0.5f, 1f), UnityEngine.Random.Range(-1f, 1f));
                                 }
                             }
-                            /*
-                            GlowStick[] allGlowsticks = FindObjectsOfType<GlowStick>();
-                            foreach (GlowStick glowStick in allGlowsticks)
-                            {
-                                glowStick.transform.position = References.Player.transform.position;
-                            }
-                            */
                         }
 
+                        // Control godmode and invisibility.
                         if (Input.GetKeyDown(KeyCode.G))
                         {
                             // Numbers from 1 = (false, false).
@@ -785,107 +713,52 @@ namespace MonstrumExtendedSettingsMod
                             // 2 -> 3 | (true, false) -> (true, true) | Switch on invisibility.
                             // 3 -> 4 | (true, true) -> (false, turn) | Switch off godmode.
                             // 4 -> 1 | (false, true) -> (false, false) | Switch off invisibility.
-                            if ((ModSettings.invincibilityMode[0] && ModSettings.InvisibleMode) || (!ModSettings.invincibilityMode[0] && !ModSettings.InvisibleMode))
+                            if (ModSettings.invincibilityMode[0] == ModSettings.InvisibleMode)
                             {
                                 ModSettings.startedWithInvincibilityMode = !ModSettings.startedWithInvincibilityMode;
-                                ModSettings.SetInvincibilityMode(!ModSettings.invincibilityMode[0], true);
+                                ModSettings.SetInvincibilityMode(!ModSettings.invincibilityMode[0]);
                             }
                             else
                             {
                                 ModSettings.InvisibleMode = !ModSettings.InvisibleMode;
                             }
 
-                            /*
-                            if (ModSettings.invincibilityMode[0])
-                            {
-                                if (ModSettings.InvisibleMode)
-                                {
-                                    ModSettings.SetInvincibilityMode(false, true);
-                                }
-                                else
-                                {
-                                    ModSettings.InvisibleMode = true;
-                                }
-                            }
-                            else
-                            {
-                                if (ModSettings.InvisibleMode)
-                                {
-                                    ModSettings.InvisibleMode = false;
-                                }
-                                else
-                                {
-                                    ModSettings.SetInvincibilityMode(true, true);
-                                }
-                            }
-                            */
-
                             ModSettings.ShowTextOnScreen("Godmode " + (ModSettings.invincibilityMode[0] ? "✓" : "×") + " | Invisibility " + (ModSettings.InvisibleMode ? "✓" : "×"));
                         }
 
+                        // Force monsters to chase.
                         if (Input.GetKeyDown(KeyCode.B))
                         {
                             ModSettings.ForceChase();
                         }
 
+                        // Force monsters to stop chasing.
                         if (Input.GetKeyDown(KeyCode.N))
                         {
                             ModSettings.ForceStopChase();
                         }
 
+                        // Burn any hunters in the game.
                         if (Input.GetKeyDown(KeyCode.M))
                         {
                             ModSettings.BurnHunter();
                         }
 
+                        // Teleport the monster to the player.
                         if (Input.GetKeyDown(KeyCode.Backspace))
                         {
                             References.Monster.transform.position = References.Player.transform.position;
                             References.Monster.transform.rotation = References.Player.transform.rotation;
-
-                            //if(ModSettings.simpleSparkyTest /* && ModSettings.finishedCreatingSimpleSparky*/)
-                            //SparkyMode.SimpleSparkyModelTest();
-
-                            /*
-                            SkinnedMeshRenderer sparkySMR = SparkyMode.simpleSparkyGO.GetComponentInChildren<SkinnedMeshRenderer>();
-                            if (sparkySMR == null)
-                            {
-                                Debug.Log("Sparky SMR is null in ActiveFeatures!");
-                            }
-                            else
-                            {
-                                if (sparkySMR.rootBone == null)
-                                {
-                                    Debug.Log("Sparky root bone is null in ActiveFeatures!");
-                                }
-                                else
-                                {
-                                    int distanceToMonster = Mathf.RoundToInt(Vector3.Distance(SparkyMode.simpleSparkyGO.transform.position, References.Player.transform.position)); // (int)Math.Round((closestMonster.transform.position - References.player.transform.position).magnitude); // Can use Vector3.Distance instead.
-                                    int distanceToRoot = Mathf.RoundToInt(Vector3.Distance(sparkySMR.rootBone.position, References.Player.transform.position)); // (int)Math.Round((closestMonster.monsterMesh[0].rootBone.transform.position - References.player.transform.position).magnitude); // Can use Vector3.Distance instead.
-
-                                    // If the monster is out of ship bounds, use its height instead.
-                                    float closestMonsterDeck;
-                                    try
-                                    {
-                                        closestMonsterDeck = (int)RegionManager.Instance.ConvertPointToRegionNode(SparkyMode.simpleSparkyGO.transform.position).y;
-                                    }
-                                    catch
-                                    {
-                                        closestMonsterDeck = (int)SparkyMode.simpleSparkyGO.transform.position.y;
-                                        Debug.Log("Simple Sparky GO does not seem to be in bounds.");
-                                    }
-
-                                    ModSettings.ShowTextOnScreen("You are " + distanceToMonster + "m away from simple sparky, which is on deck " + closestMonsterDeck + ". Is the SMR visible? " + sparkySMR.isVisible + ". Root is " + distanceToRoot + "m away.");
-                                }
-                            }
-                            */
                         }
                     }
 
+                    // Stamina mode.
                     if (ModSettings.playerStaminaMode)
                     {
+                        // Set for every player separately.
                         for (int i = 0; i < ModSettings.staminaTimer.Count; i++)
                         {
+                            // Get the player to set stamina effects for.
                             NewPlayerClass newPlayerClass;
                             if (!ModSettings.enableMultiplayer)
                             {
@@ -895,110 +768,51 @@ namespace MonstrumExtendedSettingsMod
                             {
                                 newPlayerClass = MultiplayerMode.crewPlayers[i];
                             }
-                            /*
-                            float staminaModeExponential = Mathf.Exp(ModSettings.staminaModeHorizontalShiftConstant - ModSettings.staminaModeTimeCoefficient * ModSettings.staminaTimer);
-                            ModSettings.playerMovementSpeedDynamicMultiplier = ModSettings.staminaModeVerticalShiftConstant + ModSettings.staminaModeVerticalScalingCoefficient * (staminaModeExponential / (ModSettings.playerMovementSpeedEndMultiplier + ModSettings.staminaModeMaximumMultiplierChange * staminaModeExponential));
-                            */
+
+                            // Use a logistic equation to determine the player's speed.
                             ModSettings.playerMovementSpeedDynamicMultiplier[i] = ModSettings.playerMovementSpeedEndMultiplier + ModSettings.staminaModeMaximumMultiplierChange / (1f + Mathf.Exp(ModSettings.staminaModeTimeCoefficient * ModSettings.staminaTimer[i] - 5));
 
-                            if (References.PlayerClass.IsRunning())
+
+
+                            if (References.PlayerClass.IsRunning()) // Increase the stamina timer if the player is running and limit their speed by the logistic equation.
                             {
                                 ModSettings.staminaTimer[i] += Time.deltaTime;
-                                //ModSettings.playerMovementSpeedDynamicMultiplier = Mathf.SmoothDamp(ModSettings.playerMovementSpeedDynamicMultiplier, ModSettings.playerMovementSpeedEndMultiplier, ref staminaSpeed, 5f);
-                                //ModSettings.playerMovementSpeedDynamicMultiplier = Mathf.Lerp(ModSettings.playerMovementSpeedDynamicMultiplier, ModSettings.playerMovementSpeedEndMultiplier, (ModSettings.playerMovementSpeedEndMultiplier - ModSettings.playerMovementSpeedDynamicMultiplier) / 2);
                                 ModSettings.playerMovementSpeedMultiplier[i] = ModSettings.playerMovementSpeedDynamicMultiplier[i];
                             }
-                            else if (ModSettings.staminaTimer[i] > 0f)
-                            {
-                                if (!References.PlayerClass.Motor.Moving)
-                                {
-                                    ModSettings.staminaTimer[i] -= ModSettings.playerStaminaModeStandingRecoveryFactor * Time.deltaTime;
-                                }
-                                else
-                                {
-                                    ModSettings.staminaTimer[i] -= ModSettings.playerStaminaModeWalkingRecoveryFactor * Time.deltaTime;
-                                }
-                                //ModSettings.playerMovementSpeedDynamicMultiplier = Mathf.SmoothDamp(ModSettings.playerMovementSpeedDynamicMultiplier, ModSettings.playerMovementSpeedStartMultiplier, ref staminaSpeed, 3f);
-                                //ModSettings.playerMovementSpeedDynamicMultiplier = Mathf.Lerp(ModSettings.playerMovementSpeedDynamicMultiplier, ModSettings.playerMovementSpeedStartMultiplier, (ModSettings.playerMovementSpeedStartMultiplier - ModSettings.playerMovementSpeedDynamicMultiplier) / 2);
-                                ModSettings.playerMovementSpeedMultiplier[i] = ModSettings.playerMovementSpeedStartMultiplier;
-                            }
                             else
                             {
-                                ModSettings.staminaTimer[i] = 0f;
-                                ModSettings.playerMovementSpeedDynamicMultiplier[i] = ModSettings.playerMovementSpeedStartMultiplier;
-                                ModSettings.playerMovementSpeedMultiplier[i] = ModSettings.playerMovementSpeedStartMultiplier;
-                            }
+                                if (ModSettings.staminaTimer[i] > 0f) // Recover with a rate depending on whether the player is moving or standing still.
+                                {
 
-                            /*
-                            if (References.PlayerClass.IsRunning())
-                            {
-                                if (!startedRunning)
-                                {
-                                    ModSettings.playerMovementSpeedDynamicMultiplier -= 0.001f * ModSettings.playerMovementSpeedStartMultiplier;
-                                    startedRunning = true;
-                                }
-                                else
-                                {
-                                    //ModSettings.playerMovementSpeedDynamicMultiplier = Mathf.MoveTowards(ModSettings.playerMovementSpeedDynamicMultiplier, ModSettings.playerMovementSpeedEndMultiplier, (ModSettings.playerMovementSpeedStartMultiplier - ModSettings.playerMovementSpeedDynamicMultiplier) / ModSettings.playerMovementSpeedEndMultiplier);
-                                    ModSettings.playerMovementSpeedDynamicMultiplier -= (Time.deltaTime) * (ModSettings.playerMovementSpeedStartMultiplier - ModSettings.playerMovementSpeedDynamicMultiplier) / ModSettings.playerMovementSpeedEndMultiplier;
-                                    if (ModSettings.playerMovementSpeedDynamicMultiplier < ModSettings.playerMovementSpeedEndMultiplier)
+                                    if (!References.PlayerClass.Motor.Moving)
                                     {
-                                        ModSettings.playerMovementSpeedDynamicMultiplier = ModSettings.playerMovementSpeedEndMultiplier;
+                                        ModSettings.staminaTimer[i] -= ModSettings.playerStaminaModeStandingRecoveryFactor * Time.deltaTime;
                                     }
-                                }
-                                ModSettings.playerMovementSpeedMultiplier = ModSettings.playerMovementSpeedDynamicMultiplier;
-                            }
-                            else
-                            {
-                                //ModSettings.playerMovementSpeedDynamicMultiplier = Mathf.MoveTowards(ModSettings.playerMovementSpeedDynamicMultiplier, ModSettings.playerMovementSpeedStartMultiplier, (ModSettings.playerMovementSpeedStartMultiplier - ModSettings.playerMovementSpeedDynamicMultiplier) / ModSettings.playerMovementSpeedEndMultiplier);
-                                ModSettings.playerMovementSpeedDynamicMultiplier += (Time.deltaTime) * (ModSettings.playerMovementSpeedStartMultiplier - ModSettings.playerMovementSpeedDynamicMultiplier) / ModSettings.playerMovementSpeedEndMultiplier;
-                                if (ModSettings.playerMovementSpeedDynamicMultiplier > ModSettings.playerMovementSpeedStartMultiplier)
-                                {
-                                    ModSettings.playerMovementSpeedDynamicMultiplier = ModSettings.playerMovementSpeedStartMultiplier;
-                                }
-                                ModSettings.playerMovementSpeedMultiplier = ModSettings.playerMovementSpeedStartMultiplier;
-                                startedRunning = false;
-                            }
-                            */
+                                    else
+                                    {
+                                        ModSettings.staminaTimer[i] -= ModSettings.playerStaminaModeWalkingRecoveryFactor * Time.deltaTime;
+                                    }
 
-                            /*
-                            ModSettings.playerMovementSpeedDynamicMultiplier = ModSettings.playerMovementSpeedEndMultiplier + (ModSettings.playerMovementSpeedStartMultiplier - ModSettings.playerMovementSpeedEndMultiplier) * (1 / (ModSettings.playerMovementSpeedEndMultiplier + (ModSettings.playerMovementSpeedStartMultiplier - ModSettings.playerMovementSpeedEndMultiplier) * Mathf.Exp(ModSettings.playerStaminaModeStaminaDecayRate * ModSettings.staminaTimer)));
+                                }
+                                else // Clamp the stamina timer and speed multipliers when fully recovered.
+                                {
+                                    ModSettings.staminaTimer[i] = 0f;
+                                    ModSettings.playerMovementSpeedDynamicMultiplier[i] = ModSettings.playerMovementSpeedStartMultiplier;
+                                }
 
-                            if (References.PlayerClass.IsRunning())
-                            {
-                                ModSettings.staminaTimer += Time.deltaTime;
-                                //ModSettings.playerMovementSpeedDynamicMultiplier = Mathf.SmoothDamp(ModSettings.playerMovementSpeedDynamicMultiplier, ModSettings.playerMovementSpeedEndMultiplier, ref staminaSpeed, 5f);
-                                //ModSettings.playerMovementSpeedDynamicMultiplier = Mathf.Lerp(ModSettings.playerMovementSpeedDynamicMultiplier, ModSettings.playerMovementSpeedEndMultiplier, (ModSettings.playerMovementSpeedEndMultiplier - ModSettings.playerMovementSpeedDynamicMultiplier) / 2);
-                                ModSettings.playerMovementSpeedMultiplier = ModSettings.playerMovementSpeedDynamicMultiplier;
+                                // If recovering, let the player use their base walking speed.
+                                ModSettings.playerMovementSpeedMultiplier[i] = ModSettings.playerMovementSpeedStartMultiplier;
                             }
-                            else if (ModSettings.staminaTimer > 0f)
-                            {
-                                if (!References.PlayerClass.Motor.Moving)
-                                {
-                                    ModSettings.staminaTimer -= 3 * Time.deltaTime;
-                                }
-                                else
-                                {
-                                    ModSettings.staminaTimer -= Time.deltaTime;
-                                }
-                                //ModSettings.playerMovementSpeedDynamicMultiplier = Mathf.SmoothDamp(ModSettings.playerMovementSpeedDynamicMultiplier, ModSettings.playerMovementSpeedStartMultiplier, ref staminaSpeed, 3f);
-                                //ModSettings.playerMovementSpeedDynamicMultiplier = Mathf.Lerp(ModSettings.playerMovementSpeedDynamicMultiplier, ModSettings.playerMovementSpeedStartMultiplier, (ModSettings.playerMovementSpeedStartMultiplier - ModSettings.playerMovementSpeedDynamicMultiplier) / 2);
-                                ModSettings.playerMovementSpeedMultiplier = ModSettings.playerMovementSpeedStartMultiplier;
-                            }
-                            else
-                            {
-                                ModSettings.staminaTimer = 0f;
-                                ModSettings.playerMovementSpeedMultiplier = ModSettings.playerMovementSpeedStartMultiplier;
-                            }
-                            */
                         }
 
+                        // Display the current dynamic speed multiplier if desired.
                         if (ModSettings.playerStaminaModeStaminaText)
                         {
                             ModSettings.ShowTextOnScreen("Current dynamic speed multiplier: " + ModSettings.playerMovementSpeedDynamicMultiplier[0]);
                         }
                     }
 
+                    // Active Features for multiplayer and crew vs monster mode.
                     if (ModSettings.enableMultiplayer)
                     {
                         //MultiplayerMode.MultiplayerModeActiveFeatures();
@@ -1008,41 +822,25 @@ namespace MonstrumExtendedSettingsMod
                             CrewVsMonsterMode.CrewVSMonsterModeActiveFeatures();
                         }
                     }
-
-                    if (ModSettings.useSmokeMonster)
-                    {
-                        SmokeMonster.SmokeMonsterActiveFeatures();
-                    }
                 }
             }
 
+            /// <summary>
+            /// Readies the liferaft automatically.
+            /// Handles multiple liferafts as needed in the case of when the Add Additional Crew Deck Building setting is enabled.
+            /// </summary>
+            /// <param name="startedViaDebug">Whether the function was called via debug mode.</param>
+            /// <returns>>An IEnumerator representing the liferaft preparation process.</returns>
             private static IEnumerator ReadyLiferaft(bool startedViaDebug = false)
             {
-                // The code has been adapted to handle multiple liferafts as needed in the case of when the Add Additional Crew Deck Building setting is enabled.
                 if (startedViaDebug)
                 {
                     ModSettings.ShowTextOnScreen("Started Liferaft Escape Sequence");
                 }
 
-                CraneSpoolBox[] craneSpoolBoxes = FindObjectsOfType<CraneSpoolBox>();
-                Spool[] spools = FindObjectsOfType<Spool>();
-                List<CraneSpoolBox> emptyCraneSpoolBoxes = new List<CraneSpoolBox>();
-                List<Spool> usableSpools = new List<Spool>();
-                for (int i = 0; i < craneSpoolBoxes.Length; i++)
-                {
-                    if (craneSpoolBoxes[i].spool == null)
-                    {
-                        emptyCraneSpoolBoxes.Add(craneSpoolBoxes[i]);
-                    }
-                }
-                for (int i = 0; i < spools.Length; i++)
-                {
-                    if (spools[i].spoolBox == null)
-                    {
-                        usableSpools.Add(spools[i]);
-                    }
-                }
-                for (int i = 0; i < Math.Min(emptyCraneSpoolBoxes.Count, usableSpools.Count); i++)
+                List<CraneSpoolBox> emptyCraneSpoolBoxes = FindObjectsOfType<CraneSpoolBox>().Where(box => box.spool == null).ToList(); // Find spool boxes that have no spool
+                List<Spool> usableSpools = FindObjectsOfType<Spool>().Where(spool => spool.spoolBox == null).ToList(); // Find spools that are not in a box.
+                for (int i = 0; i < Math.Min(emptyCraneSpoolBoxes.Count, usableSpools.Count); i++) // Add as many spools to empty boxes as possible.
                 {
                     usableSpools[i].AddToSpoolBox(emptyCraneSpoolBoxes[i]);
                 }
@@ -3053,6 +2851,7 @@ namespace MonstrumExtendedSettingsMod
             {
                 if (ModSettings.WallhacksMode)
                 {
+                    // Letting the user reverse the effects of this on walls seems to be more complicated than at first glance. The "wallhacks" seem to occur due to a lack of room collision of some kind.
                     levelGeneration.winterWonderland = true;
                 }
 

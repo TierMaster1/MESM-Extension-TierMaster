@@ -1231,8 +1231,6 @@ namespace MonstrumExtendedSettingsMod
                     }
                     InvisibleMode = new MESMSetting<bool>("Invisibility In Debug Mode", "Monsters cannot see you", false, false, true).userValue;
                     WallhacksMode = new MESMSetting<bool>("Use \"Wallhacks\" In Debug Mode", "Most walls will be see-through (requires SSAO and Fog for full effect)", false, false, true).userValue;
-                    BreakTheGameLight = new MESMSetting<bool>("Break The Game Lightly", "Continuously sets References.Monster to null after level generation is finished", false, false, true).userValue;
-                    BreakTheGameHeavy = new MESMSetting<bool>("Break The Game Heavily", "Continuously sets References.Monster to null even before level generation is finished - Requires Break The Game Lightly to be enabled", false, false, true).userValue;
                     skipSplashScreen = new MESMSetting<bool>("Skip Splash Screen", "Will skip the splash screen on startup but not start a new round immediately", false).userValue;
                     skipMenuScreen = new MESMSetting<bool>("Skip Menu Screen", "Will skip the menu screen on startup so that a new round is automatically started without having to click on New Game. Causes visual bugs while loading", false, false, true).userValue;
                     alwaysSkipMenuScreen = new MESMSetting<bool>("Always Skip Menu Screen", "Will always skip the menu screen, even after finishing a round. Not recommended as it makes changing settings between rounds difficult and does not let access the main menu", false, false, true).userValue;
@@ -2366,7 +2364,7 @@ namespace MonstrumExtendedSettingsMod
             Welding Kit
             */
 
-            public static void SetInvincibilityMode(bool value, bool setForAllPlayers)
+            public static void SetInvincibilityMode(bool value)
             {
                 if (ModSettings.enableMultiplayer)
                 {
@@ -2444,46 +2442,6 @@ namespace MonstrumExtendedSettingsMod
                     else
                     {
                         wallhacksMode = false;
-                    }
-                }
-            }
-
-            // @BreakTheGameLight
-            public static bool BreakTheGameLight
-            {
-                get
-                {
-                    return breakTheGameLight;
-                }
-                set
-                {
-                    if (ModSettings.debugMode)
-                    {
-                        breakTheGameLight = value;
-                    }
-                    else
-                    {
-                        breakTheGameLight = false;
-                    }
-                }
-            }
-
-            // @BreakTheGameHeavy
-            public static bool BreakTheGameHeavy
-            {
-                get
-                {
-                    return breakTheGameHeavy;
-                }
-                set
-                {
-                    if (ModSettings.BreakTheGameLight)
-                    {
-                        breakTheGameHeavy = value;
-                    }
-                    else
-                    {
-                        breakTheGameHeavy = false;
                     }
                 }
             }
@@ -3787,8 +3745,6 @@ namespace MonstrumExtendedSettingsMod
             public static bool debugMode;
             public static List<bool> invincibilityMode;
             private static bool wallhacksMode;
-            private static bool breakTheGameLight;
-            private static bool breakTheGameHeavy;
             public static bool skipSplashScreen;
             public static bool skipMenuScreen;
             public static bool alwaysSkipMenuScreen;

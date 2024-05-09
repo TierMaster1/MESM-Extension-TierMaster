@@ -45,10 +45,6 @@ namespace MonstrumExtendedSettingsMod
             /*----------------------------------------------------------------------------------------------------*/
             // @SmokeMonsterActiveFeatures
 
-            public static void SmokeMonsterActiveFeatures()
-            {
-            }
-
             public static GameObject CreateSmokeEmitter(Room room)
             {
                 float boxVolume = room.RoomBounds.size.x * room.RoomBounds.size.y * room.RoomBounds.size.z;
