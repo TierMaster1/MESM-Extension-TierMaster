@@ -339,6 +339,9 @@ namespace MonstrumExtendedSettingsMod
             /*----------------------------------------------------------------------------------------------------*/
             // @Active Features
 
+            private static InventoryItem nearbyInventoryItem;
+            private static int nearbyInventoryItemDeck;
+
             /// <summary>
             /// Holds custom code for any features that may be updated each frame.
             /// </summary>
@@ -854,6 +857,7 @@ namespace MonstrumExtendedSettingsMod
                 {
                     for (int i = 0; i < liferafts.Length && i < cranes.Length; i++)
                     {
+                        // Pull, tape, inflate and connect the raft.
                         if (liferafts[i].state != Liferaft.LifeRaftState.Inflated)
                         {
                             switch (liferafts[i].state)
@@ -861,21 +865,19 @@ namespace MonstrumExtendedSettingsMod
                                 case Liferaft.LifeRaftState.OffEdge:
                                     liferafts[i].OnStartFixedAnimation();
                                     break;
-
                                 case Liferaft.LifeRaftState.Dragging:
                                     liferafts[i].AdvanceState();
                                     break;
-
                                 case Liferaft.LifeRaftState.Torn:
                                     liferafts[i].OnFinishFixedAnimation();
                                     break;
-
                                 default:
                                     liferafts[i].OnStartLoopAnimation();
                                     break;
                             }
                         }
 
+                        // Move the raft using the crane.
                         if (!cranes[i].chain.hook.IsConnected)
                         {
                             MoveCrane(cranes[i], "Left");
@@ -900,24 +902,16 @@ namespace MonstrumExtendedSettingsMod
                         }
                     }
 
-                    fixingLiferafts = false;
-                    foreach (bool isLiferaftFixed in liferaftsFixedBools)
-                    {
-                        if (isLiferaftFixed == false)
-                        {
-                            fixingLiferafts = true;
-                            break;
-                        }
-                    }
-
+                    // Keep fixing liferafts until all are fixed. Set fixingLiferafts to true if any are not fixed yet.
+                    fixingLiferafts = liferaftsFixedBools.Any(isLiferaftFixed => !isLiferaftFixed);
                     yield return null;
                 }
                 yield break;
             }
 
-            private static InventoryItem nearbyInventoryItem;
-            private static int nearbyInventoryItemDeck;
-
+            /// <summary>
+            /// Tried to connect the fuel cart's hose to the helicopter after a short delay.
+            /// </summary>
             private static IEnumerator ConnectHelicopterHoseWhenReady(FuelConnection fuelConnection, FuelPipeEnd fuelPipeEnd, FuelPumpLever fuelPumpLever)
             {
                 yield return new WaitForSeconds(2.5f);
@@ -926,6 +920,11 @@ namespace MonstrumExtendedSettingsMod
                 yield break;
             }
 
+            /// <summary>
+            /// Moves the crane automatically given a direction to move it in.
+            /// </summary>
+            /// <param name="crane">The crane to move.</param>
+            /// <param name="direction">A string denoting the direction to move the crane in.</param>
             private static void MoveCrane(Crane crane, String direction)
             {
                 switch (direction)
@@ -976,16 +975,9 @@ namespace MonstrumExtendedSettingsMod
                 }
             }
 
-            // Copy of KeyControl's GetKeyPref
-            private static KeyCode GetKeyPrefCopy(string _savedKey, KeyCode _defaultKey)
-            {
-                if (PlayerPrefs.HasKey(_savedKey))
-                {
-                    return (KeyCode)PlayerPrefs.GetInt(_savedKey, 0);
-                }
-                return _defaultKey;
-            }
-
+            /// <summary>
+            /// Contains several hooks that prevent errors when in noclip mode.
+            /// </summary>
             private static void HookNoClipFixes()
             {
                 On.AmbienceRaycasting.IsOutside += new On.AmbienceRaycasting.hook_IsOutside(HookAmbienceRaycastingNoClipFix);
@@ -993,30 +985,33 @@ namespace MonstrumExtendedSettingsMod
                 //On.DetectRoom.PlayerHidingSpot += new On.DetectRoom.hook_PlayerHidingSpot(HookDetectRoomNoClipFix); // While this gets rid of the null reference exception when the player is out of bounds, it also affects normal gameplay when the player is in bounds.
             }
 
+            /// <summary>
+            /// Return true when noclipping to prevent null reference from playerRoom.
+            /// </summary>
             private static bool HookAmbienceRaycastingNoClipFix(On.AmbienceRaycasting.orig_IsOutside orig, AmbienceRaycasting ambienceRaycasting)
             {
                 if (ModSettings.noclip)
                 {
                     return true;
                 }
-                else
-                {
-                    return orig.Invoke(ambienceRaycasting);
-                }
+                return orig.Invoke(ambienceRaycasting);
             }
 
+            /// <summary>
+            /// Return false when noclipping to prevent null reference from PlayerDetectRoom.
+            /// </summary>
             private static bool HookMonsterNoClipFix(On.Monster.orig_BothInEngineRoom orig, Monster monster)
             {
                 if (ModSettings.noclip)
                 {
                     return false;
                 }
-                else
-                {
-                    return orig.Invoke(monster);
-                }
+                return orig.Invoke(monster);
             }
 
+            /// <summary>
+            /// Return null when nullclipping to prevent null reference from HidingSpotPoint (?).
+            /// </summary>
             private static HidingSpot HookDetectRoomNoClipFix(On.DetectRoom.orig_PlayerHidingSpot orig, DetectRoom detectRoom, HidingSpot[] _spots)
             {
                 if (ModSettings.noclip)
