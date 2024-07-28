@@ -127,7 +127,7 @@ namespace MonstrumExtendedSettingsMod
                 On.MouseLock.LateUpdate += new On.MouseLock.hook_LateUpdate(HookMouseLockLateUpdate); // Stop the mouse lock from updating until the level has finished generating if the menu has been skipped.
                 On.MenusEventSystemManager.Delay += new On.MenusEventSystemManager.hook_Delay(HookMenusEventSystemManagerDelay);
 
-                // Disable Monster Particle Systems
+                // Disable Monster Particle Systems & Part 1 of Silent Monster
                 HookMonster();
 
                 // Increase Key Items
@@ -312,6 +312,11 @@ namespace MonstrumExtendedSettingsMod
                 // Quiet Hunter
                 On.HunterAnimationsScript.SpawnHunter += new On.HunterAnimationsScript.hook_SpawnHunter(HookHunterAnimationsScriptSpawnHunter);
                 On.MSearchingState.MakeSound += new On.MSearchingState.hook_MakeSound(HookMSearchingStateMakeSound);
+
+                // Part 2 of Silent Monster
+                On.FloatHum.Start += new On.FloatHum.hook_Start(HookFloatHumStart);
+                On.FootStepManager.Start += new On.FootStepManager.hook_Start(HookFootStepManagerStart);
+                On.MHuntingState.InitalSetups += new On.MHuntingState.hook_InitalSetups(HookMHuntingStateInitalSetups);
             }
 
             /*
@@ -750,8 +755,19 @@ namespace MonstrumExtendedSettingsMod
                         // Teleport the monster to the player.
                         if (Input.GetKeyDown(KeyCode.Backspace))
                         {
-                            References.Monster.transform.position = References.Player.transform.position;
-                            References.Monster.transform.rotation = References.Player.transform.rotation;
+                            if (ModSettings.startedWithMMM)
+                            {
+                                foreach (GameObject monsterGO in ManyMonstersMode.monsterList)
+                                {
+                                    monsterGO.transform.position = References.Player.transform.position;
+                                    monsterGO.transform.rotation = References.Player.transform.rotation;
+                                }
+                            }
+                            else
+                            {
+                                References.Monster.transform.position = References.Player.transform.position;
+                                References.Monster.transform.rotation = References.Player.transform.rotation;
+                            }
                         }
                     }
 
@@ -2037,6 +2053,37 @@ namespace MonstrumExtendedSettingsMod
             }
 
             /*----------------------------------------------------------------------------------------------------*/
+            // @FloatHum
+
+            private static void HookFloatHumStart(On.FloatHum.orig_Start orig, FloatHum floatHum)
+            {
+                orig.Invoke(floatHum);
+                if (ModSettings.silentMonster)
+                {
+                    floatHum.floatSource.mute = true;
+                }
+            }
+
+            /*----------------------------------------------------------------------------------------------------*/
+            // @FootStepManager
+
+            private static void HookFootStepManagerStart(On.FootStepManager.orig_Start orig, FootStepManager footStepManager)
+            {
+                orig.Invoke(footStepManager);
+                if (ModSettings.silentMonster && footStepManager.isMonster)
+                {
+                    if (footStepManager.source)
+                    {
+                        footStepManager.source.mute = true;
+                    }
+                    if (footStepManager.source2)
+                    {
+                        footStepManager.source2.mute = true;
+                    }
+                }
+            }
+
+            /*----------------------------------------------------------------------------------------------------*/
             // @FOVCheck
 
             private static void HookFOVCheck(On.FOVCheck.orig_Start orig, FOVCheck fOVCheck)
@@ -2272,26 +2319,26 @@ namespace MonstrumExtendedSettingsMod
                 orig.Invoke(genericLight);
 
                 // # LATEST INDEV CHANGE
-                try
-                {
-                    Light light = ((MonoBehaviour)genericLight).GetComponent<Light>();
-                    Light[] lights = References.Monster.GetComponentsInChildren<Light>();
-                    LightShafts lightShafts = References.Monster.GetComponentInChildren<LightShafts>();
-                    Light[] bruteEyes = new Light[] { lights[4] /*Brute's left eye*/, lights[5] /*Brute's right eye*/ };
+                // try
+                // {
+                //     Light light = ((MonoBehaviour)genericLight).GetComponent<Light>();
+                //     Light[] lights = References.Monster.GetComponentsInChildren<Light>();
+                //     LightShafts lightShafts = References.Monster.GetComponentInChildren<LightShafts>();
+                //     Light[] bruteEyes = new Light[] { lights[4] /*Brute's left eye*/, lights[5] /*Brute's right eye*/ };
 
-                    if (light.gameObject.GetComponentInChildren<LightShafts>() == null)
-                    {
-                        light.intensity *= 0.01f;
-                        //light.range *= 0.5f;
-                        LightShafts newLightShafts = Utilities.CopyComponent(lightShafts, light.gameObject);
-                        newLightShafts.m_Brightness = light.intensity;
-                        newLightShafts.m_BrightnessColored = newLightShafts.m_Brightness;
-                    }
-                }
-                catch
-                {
-                    Debug.Log("Could not update lights in ReadAfterGeneration");
-                }
+                //     if (light.gameObject.GetComponentInChildren<LightShafts>() == null)
+                //     {
+                //         light.intensity *= 0.01f;
+                //         //light.range *= 0.5f;
+                //         LightShafts newLightShafts = Utilities.CopyComponent(lightShafts, light.gameObject);
+                //         newLightShafts.m_Brightness = light.intensity;
+                //         newLightShafts.m_BrightnessColored = newLightShafts.m_Brightness;
+                //     }
+                // }
+                // catch
+                // {
+                //     Debug.Log("Could not update lights in ReadAfterGeneration");
+                // }
             }
 
             /*----------------------------------------------------------------------------------------------------*/
@@ -5900,6 +5947,15 @@ namespace MonstrumExtendedSettingsMod
             /*----------------------------------------------------------------------------------------------------*/
             // @MHuntingState
 
+            private static void HookMHuntingStateInitalSetups(On.MHuntingState.orig_InitalSetups orig, MHuntingState mHuntingState)
+            {
+                orig.Invoke(mHuntingState);
+                if (ModSettings.silentMonster)
+                {
+                    mHuntingState.HuntingSource.mute = true; // This is the same source used for VentFrenzy.
+                }
+            }
+
             private static void HookMHuntingStateSetUpTimes(On.MHuntingState.orig_SetUpTimes orig, MHuntingState mHuntingState)
             {
                 orig.Invoke(mHuntingState);
@@ -6009,6 +6065,17 @@ namespace MonstrumExtendedSettingsMod
                         Debug.Log("Could not list monster lights");
                     }
                     */
+                }
+                if (ModSettings.silentMonster)
+                {
+                    if (monster.audSource)
+                    {
+                        monster.audSource.mute = true;
+                    }
+                    if (monster.audSource2)
+                    {
+                        monster.audSource2.mute = true;
+                    }
                 }
             }
 

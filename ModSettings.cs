@@ -573,6 +573,7 @@ namespace MonstrumExtendedSettingsMod
                     noMonsterStunImmunity = new MESMSetting<bool>("No Monster Stun Immunity", "Removes the immunity time monsters have after being stunned", false).userValue;
                     persistentMonster = new MESMSetting<bool>("Persistent Monster", "Once a monster sees you, it will not stop chasing you", false).userValue;
                     seerMonster = new MESMSetting<bool>("Seer Monster", "After a monster spawns or you respawn, it will start chasing you", false).userValue;
+                    silentMonster = new MESMSetting<bool>("Silent Monster", "The monster will not make any noise", false).userValue;
                     monsterAlwaysFindsYou = new MESMSetting<bool>("Monster Always Finds You In Hiding Spot", "Only guarantees the monster will pull you out if it checks your hiding spot", false).userValue;
                     monsterAnimationSpeedMultiplier = new MESMSetting<float>("Monster Animation Speed Multiplier", "Changes the speed of all the animations of a monster. Movement is bound to animations", 1).userValue;
                     monsterMovementSpeedMultiplier = new MESMSetting<float>("Monster Movement Speed Multiplier", "Decreases a monster's speed without decreasing the speed of its animations. Values above 1 will make the monster move closer to full running speed during other states, such as while wandering about or at the sub doors", 1).userValue;
@@ -2375,7 +2376,7 @@ namespace MonstrumExtendedSettingsMod
                 }
                 else
                 {
-                    SetInvincibilityMode(value);
+                    SetInvincibilityMode(value, 0);
                 }
             }
 
@@ -2387,11 +2388,11 @@ namespace MonstrumExtendedSettingsMod
                 }
                 else
                 {
-                    SetInvincibilityMode(value);
+                    SetInvincibilityMode(value, 0);
                 }
             }
 
-            public static void SetInvincibilityMode(bool value, int crewPlayerIndex = 0)
+            public static void SetInvincibilityMode(bool value, int crewPlayerIndex)
             {
                 if (startedWithInvincibilityMode)
                 {
@@ -3491,6 +3492,7 @@ namespace MonstrumExtendedSettingsMod
             public static bool noMonsterStunImmunity;
             public static bool persistentMonster;
             public static bool seerMonster;
+            public static bool silentMonster;
             public static bool monsterAlwaysFindsYou;
             public static float monsterAnimationSpeedMultiplier;
             public static float monsterMovementSpeedMultiplier;
