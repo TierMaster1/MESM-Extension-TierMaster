@@ -7587,11 +7587,6 @@ namespace MonstrumExtendedSettingsMod
                 if (SecurityCamera.alarmManager == null)
                 {
                     SecurityCamera.alarmManager = UnityEngine.Object.FindObjectOfType(typeof(AlarmManager)) as AlarmManager;
-
-                    if (SecurityCamera.alarmManager != null)
-                    {
-                        SecurityCamera.alarmManager.alarmTime = 1f;
-                    }
                 }
                 securityCamera.camRoom = ((MonoBehaviour)securityCamera).GetComponentInParent<Room>();
                 securityCamera.ledRend = securityCamera.ledLight.GetComponent<Renderer>();
