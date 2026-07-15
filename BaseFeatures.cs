@@ -1159,6 +1159,14 @@ namespace MonstrumExtendedSettingsMod
             }
 
             /*----------------------------------------------------------------------------------------------------*/
+            // @AmberState
+
+            private static void HookAmberStateCtor(On.AmberState.orig_ctor orig, AmberState amberState)
+            {
+                amberState.warningTime = ModSettings.camTimer;
+            }
+
+            /*----------------------------------------------------------------------------------------------------*/
             // @AnimationControl
 
             /// <summary>
@@ -7330,14 +7338,6 @@ namespace MonstrumExtendedSettingsMod
                 {
                     securityCamera.StopByDuctTape();
                 }
-            }
-
-            /*----------------------------------------------------------------------------------------------------*/
-            // @AmberState
-
-            private static void HookAmberStateCtor(On.AmberState.orig_ctor orig, AmberState amberState)
-            {
-                amberState.warningTime = ModSettings.camTimer;
             }
 
             /*----------------------------------------------------------------------------------------------------*/
